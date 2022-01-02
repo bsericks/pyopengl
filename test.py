@@ -5,6 +5,7 @@ import numpy as np
 import glm
 from numpy.core.numeric import identity
 from pygl.camera import *
+from pygl.shader import *
 from OpenGL.GLUT import *
 
 import tkinter as tk
@@ -140,22 +141,23 @@ def mouse_callback(window, xpos, ypos):
 
     xoffset = xpos - lastX
     yoffset = lastY - ypos
-
+    
     lastX = xpos
     lastY = ypos
-
-    camera.ProcessMouseMovement(xoffset, yoffset)
+ 
+    #constrain jumpyness when clicking
+    if abs(xoffset) < 100 and abs(yoffset) < 100:
+        camera.ProcessMouseMovement(xoffset, yoffset)
 
 # the window resize callback function
 
 
 def framebuffer_size_callback(window, width, height):
-    global projection
+    global projection, SCR_WIDTH, SCR_HEIGHT
 
     glViewport(0, 0, width, height)
-    projection = glm.mat4.create_perspective_projection_matrix(
-        45, width / height, 0.1, 100)
-    glUniformMatrix4fv(proj_loc, 1, GL_FALSE, projection)
+    SCR_WIDTH = width;
+    SCR_HEIGHT = height;
 
 # the keyboard input callback
 
@@ -220,14 +222,20 @@ def process_movement():
             camera.ProcessKeyboard(Camera_Movement(idx), deltaTime)
 
 def mouse_button_callback(window, button, action, mods):
-    global mouse_left_down
+    global mouse_left_down, lastX, lastY
     
+    glfw.set_cursor_pos(window, SCR_WIDTH/2, SCR_HEIGHT/2)
+
     if button == glfw.MOUSE_BUTTON_LEFT and action == glfw.PRESS: 
         mouse_left_down = True;
+        glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+        
     elif button == glfw.MOUSE_BUTTON_LEFT and action == glfw.RELEASE: 
         mouse_left_down = False;
-
+        glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_NORMAL)
+        
     
+    lastX, lastY = glfw.get_cursor_pos(window);
 
 
 def window_resize(window, width, height):
@@ -289,8 +297,7 @@ indices = [0, 1, 2, 2, 3, 0,
 vertices = np.array(vertices, dtype=np.float32)
 indices = np.array(indices, dtype=np.uint32)
 
-shader = compileProgram(compileShader(vertex_src, GL_VERTEX_SHADER), compileShader(fragment_src, GL_FRAGMENT_SHADER))
-
+shader = Shader()    
 
 vao = glGenVertexArrays( 1 );
 glBindVertexArray( vao );
@@ -311,14 +318,10 @@ glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(0))
 glEnableVertexAttribArray(1)
 glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(12))
 
-glUseProgram(shader)
+#glUseProgram(shader)
+shader.use()
 glClearColor(0, 0.1, 0.1, 1)
 glEnable(GL_DEPTH_TEST)
-
-rotation_loc = glGetUniformLocation(shader, "rotation")
-model_loc = glGetUniformLocation(shader, "model")
-view_loc = glGetUniformLocation(shader, "view")
-projection_loc = glGetUniformLocation(shader, "projection")
 
 # the main application loop
 while not glfw.window_should_close(window):
@@ -330,26 +333,19 @@ while not glfw.window_should_close(window):
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
 
-    #rot_x = glm.rotate (0.5 * glfw.get_time())
-    #rot_y = glm.rotate (0.8 * glfw.get_time())
     transform = glm.mat4(1)
     transform = glm.translate(transform, glm.vec3(0, 0, -10))
     transform = glm.rotate(transform, glfw.get_time(),glm.vec3(0.5,0.8,0))
-    projection = glm.perspective(glm.radians(camera.Zoom), 800 / 800, 0.1, 100)
+    projection = glm.perspective(glm.radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1, 100)
     process_movement();
     view = camera.GetViewMatrix();
     
     metric_app.update_metrics(camera.Position, camera.Yaw, camera.Pitch);
     
-
-    # glUniformMatrix4fv(rotation_loc, 1, GL_FALSE, rot_x * rot_y)
-    # glUniformMatrix4fv(rotation_loc, 1, GL_FALSE, rot_x @ rot_y)
-    #glUniformMatrix4fv(rotation_loc, 1, GL_FALSE, glm.value_ptr(transform))
-
     identitymat = glm.mat4(1)
-    glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm.value_ptr(transform))
-    glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm.value_ptr(view))
-    glUniformMatrix4fv(projection_loc, 1, GL_FALSE, glm.value_ptr(projection))
+    shader.setMat4('model', glm.value_ptr(transform))
+    shader.setMat4('view', glm.value_ptr(view))
+    shader.setMat4('projection', glm.value_ptr(projection))
 
 
     glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)

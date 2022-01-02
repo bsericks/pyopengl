@@ -32,7 +32,7 @@ class Camera:
     Pitch = 0.0
     # camera option
     MovementSpeed = SPEED
-    MouseSensitivity = 0.1
+    MouseSensitivity = 0.05
     Zoom = 45.0
 
     # constructor with vectors

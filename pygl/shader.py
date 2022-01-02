@@ -101,11 +101,11 @@ class Shader():
         glUniform4f(glGetUniformLocation(self.program_id, name), x, y, z, w); 
     
     def setMat2(self, name, mat): 
-        glUniformMatrix2fv(glGetUniformLocation(self.program_id, name), 1, GL_FALSE, mat[0][0]);
+        glUniformMatrix2fv(glGetUniformLocation(self.program_id, name), 1, GL_FALSE, mat);
     
     def setMat3(self, name, mat):
-        glUniformMatrix3fv(glGetUniformLocation(self.program_id, name), 1, GL_FALSE, mat[0][0]);
+        glUniformMatrix3fv(glGetUniformLocation(self.program_id, name), 1, GL_FALSE, mat);
     
     def setMat4(self, name, mat):
-        glUniformMatrix4fv(glGetUniformLocation(self.program_id, name), 1, GL_FALSE, mat[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(self.program_id, name), 1, GL_FALSE, mat);
     
