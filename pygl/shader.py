@@ -1,6 +1,3 @@
-import pygame
-from pygame.locals import *
-
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
@@ -12,7 +9,7 @@ class Shader():
     # 1. retrieve the vertex/fragment source code from filePath
     
 
-    def __init__(self, vertexPath='data/vertexShader.glsl', shaderPath='data/fragmentShader.glsl'):
+    def __init__(self, vertexPath='data/vertexShader.glsl', fragmentPath='data/fragmentShader.glsl'):
 
         vertexCode = '';
         fragmentCode = '';
@@ -21,7 +18,7 @@ class Shader():
             with open(vertexPath,'r',newline='') as rf:
                 vertexCode = rf.read()
 
-            with open(shaderPath,'r',newline='') as rf:
+            with open(fragmentPath,'r',newline='') as rf:
                 fragmentCode = rf.read()
 
         except:
@@ -108,4 +105,8 @@ class Shader():
     
     def setMat4(self, name, mat):
         glUniformMatrix4fv(glGetUniformLocation(self.program_id, name), 1, GL_FALSE, mat);
+    
+
+    def __del__(self):
+        glDeleteProgram(self.program_id);
     

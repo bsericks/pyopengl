@@ -38,6 +38,10 @@ class App(threading.Thread):
         text_box.insert(tk.END, 'Z: {}\n'.format(self.positionmetric[2]))
         text_box.insert(tk.END, 'Yaw: {}\n'.format(self.yawmetric))
         text_box.insert(tk.END, 'Pitch: {}\n'.format(self.pitchmetric))
+
+        self.text_box.tag_add("here", "1.0", tk.END)
+        self.text_box.tag_config("here", background="black", foreground="green")
+        
         self.root.after(500, self.update_text, text_box);
         
 
@@ -46,7 +50,7 @@ class App(threading.Thread):
         
         self.root.protocol("WM_DELETE_WINDOW", self.callback)
         self.root.title('PythonGuides')
-        self.root.geometry('400x300')
+        self.root.geometry('400x150')
         self.root.config(bg='#FFFFFF')
 
         self.text_box = tk.Text(
@@ -56,8 +60,7 @@ class App(threading.Thread):
                 )
         
         self.text_box.pack(expand=True)
-        self.text_box.tag_add("here", "1.0", tk.END)
-        self.text_box.tag_config("here", background="black", foreground="green")
+        
 
         self.root.after(0, self.update_text, self.text_box);
         
@@ -66,39 +69,6 @@ class App(threading.Thread):
 
 metric_app = App();
 
-
-
-
-vertex_src = """
-# version 330
-
-layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_color;
-
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
-
-out vec3 v_color;
-
-void main()
-{
-    gl_Position = projection * view * model * vec4(a_position, 1.0f);
-    v_color = a_color;
-}
-"""
-
-fragment_src = """
-# version 330
-
-in vec3 v_color;
-out vec4 out_color;
-
-void main()
-{
-    out_color = vec4(v_color, 1.0);
-}
-"""
 
 # screen settings
 SCR_WIDTH = 800;
@@ -117,7 +87,7 @@ lastFrame = 0.0;
 
 mouse_left_down = False;
 
-camera = Camera(position=glm.vec3(0.0, 0.0, 3.0));
+camera = Camera(position=glm.vec3(1.0, 1.0, 10.0));
 
 
 projection = glm.perspective(45, SCR_WIDTH / SCR_HEIGHT, 0.1, 100)
@@ -269,8 +239,9 @@ glfw.set_scroll_callback(window, scroll_callback);
 glfw.set_mouse_button_callback(window, mouse_button_callback);
     
 glfw.set_key_callback(window, key_input_clb)
-    # capture the mouse cursor
-#glfw.set_input_mode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+    
+
+glEnable(GL_DEPTH_TEST);
 
 vertices = [-0.5, -0.5, 0.5, 1.0, 0.0, 0.0,
              0.5, -0.5, 0.5, 0.0, 1.0, 0.0,
@@ -299,6 +270,8 @@ indices = np.array(indices, dtype=np.uint32)
 
 shader = Shader()    
 
+
+
 vao = glGenVertexArrays( 1 );
 glBindVertexArray( vao );
 
@@ -318,10 +291,35 @@ glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(0))
 glEnableVertexAttribArray(1)
 glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, ctypes.c_void_p(12))
 
-#glUseProgram(shader)
+glBindBuffer(GL_ARRAY_BUFFER, 0); 
+glBindVertexArray(0); 
+
 shader.use()
 glClearColor(0, 0.1, 0.1, 1)
-glEnable(GL_DEPTH_TEST)
+
+from pygl.line import *
+
+line_shader = Shader(vertexPath='data/lineShader.vs', fragmentPath='data/lineShader.fs')
+
+x_axis = Line(glm.vec3(50, 0, 0), glm.vec3(49,0,0), line_shader)
+x_axis.setColor(glm.vec3(1.0,1.0,0))
+y_axis = Line(glm.vec3(0, 50, 0), glm.vec3(0,0,0), line_shader)
+y_axis.setColor(glm.vec3(0.0,1.0,1.0))
+z_axis = Line(glm.vec3(0, 0, 50), glm.vec3(0,0,0), line_shader)
+z_axis.setColor(glm.vec3(1.0,0.0,1.0))
+
+x_grid_lines = []
+z_grid_lines = []
+
+for a in range(11):
+    x_grid_lines.append(Line(glm.vec3(100, 0, 0), glm.vec3(-100,0,0), line_shader))
+    z_grid_lines.append(Line(glm.vec3(0, 0, 100), glm.vec3(0,0,-100), line_shader))
+
+glLineWidth(2.0);
+
+from pygl.skybox import *
+
+skybox = Skybox();
 
 # the main application loop
 while not glfw.window_should_close(window):
@@ -329,27 +327,70 @@ while not glfw.window_should_close(window):
 
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
 
+    
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
+
+
     currentFrame = glfw.get_time();
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
 
+    projection = glm.perspective(glm.radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1, 200)
+
+    glDepthMask(GL_FALSE);
+    view = glm.mat4(glm.mat3(camera.GetViewMatrix())); # remove translation from the view matrix
+    skybox.setMVP(glm.mat4(1), view, projection);
+    skybox.draw()
+    glDepthMask(GL_TRUE);
+
+
     transform = glm.mat4(1)
-    transform = glm.translate(transform, glm.vec3(0, 0, -10))
+    transform = glm.translate(transform, glm.vec3(0, 0, 0))
     transform = glm.rotate(transform, glfw.get_time(),glm.vec3(0.5,0.8,0))
-    projection = glm.perspective(glm.radians(camera.Zoom), SCR_WIDTH / SCR_HEIGHT, 0.1, 100)
+    
     process_movement();
     view = camera.GetViewMatrix();
     
     metric_app.update_metrics(camera.Position, camera.Yaw, camera.Pitch);
     
     identitymat = glm.mat4(1)
+    shader.use()
     shader.setMat4('model', glm.value_ptr(transform))
     shader.setMat4('view', glm.value_ptr(view))
     shader.setMat4('projection', glm.value_ptr(projection))
 
-
+   
+    glBindVertexArray( vao );
     glDrawElements(GL_TRIANGLES, len(indices), GL_UNSIGNED_INT, None)
     #glDrawElements(GL_LINES, len(indices), GL_UNSIGNED_INT, None)
+
+    #transform = glm.mat4(1)
+    #transform = glm.translate(transform, glm.vec3(0, 0, 0))
+    x_axis.setMVP(glm.mat4(1), view, projection);
+    x_axis.draw();
+
+    #transform = glm.mat4(1)
+    #transform = glm.translate(transform, glm.vec3(0, 0, 2))
+    y_axis.setMVP(glm.mat4(1), view, projection);
+    y_axis.draw();
+
+    z_axis.setMVP(glm.mat4(1), view, projection);
+    z_axis.draw();
+
+    for a in range(11):
+        transform = glm.mat4(1)
+        transform = glm.translate(transform, glm.vec3(-50, 0, -50+(a*10)))
+        x_grid_lines[a].setMVP(transform, view, projection)
+        x_grid_lines[a].draw();
+
+        transform = glm.mat4(1)
+        transform = glm.translate(transform, glm.vec3(-50+(a*10), 0, -50))
+        z_grid_lines[a].setMVP(transform, view, projection)
+        z_grid_lines[a].draw();
+        
+    
+
 
     glfw.swap_buffers(window)
 
