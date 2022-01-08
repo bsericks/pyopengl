@@ -18,7 +18,7 @@ Controls:
 * Q/E = roll left/right
 * mouse click and drag = yaw/pitch camera (adjusts with camera roll to change yaw/pitch relative to current camera orientation)
 
-![Alt Text](https://media.giphy.com/media/ANUpKyuiVNoUDjcr62/giphy-downsized-large.gif)
+![Alt Text](https://media.giphy.com/media/ANUpKyuiVNoUDjcr62/giphy.gif)
 
 ## Requirements
 * python 3+
