@@ -3,6 +3,8 @@ from math import sin, cos
 
 # Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 from enum import IntEnum
+
+from numpy.lib.histograms import _ravel_and_check_weights
 class Camera_Movement(IntEnum):
     FORWARD = 0
     BACKWARD = 1
@@ -10,6 +12,8 @@ class Camera_Movement(IntEnum):
     RIGHT = 3
     UP = 4
     DOWN = 5
+    ROLL_LEFT = 6
+    ROLL_RIGHT = 7
 
 
 # Default camera values
@@ -30,6 +34,7 @@ class Camera:
     # euler Angle
     Yaw = -90.0
     Pitch = 0.0
+    Roll = 0.0
     # camera option
     MovementSpeed = SPEED
     MouseSensitivity = 0.05
@@ -68,10 +73,16 @@ class Camera:
             self.Position -= self.Right * velocity;
         if (direction == Camera_Movement.RIGHT):
             self.Position += self.Right * velocity;
+        if (direction == Camera_Movement.ROLL_LEFT):
+            self.Roll -= 1
+        if (direction == Camera_Movement.ROLL_RIGHT):
+            self.Roll += 1
         if (direction == Camera_Movement.UP):
             self.Position += self.Up * velocity;
         if (direction == Camera_Movement.DOWN):
             self.Position -= self.Up * velocity;
+        
+        self.updateCameraVectors();
     
 
     # processes input received from a mouse input system. Expects the offset value in both the x and y direction.
@@ -80,8 +91,8 @@ class Camera:
         xoffset *= self.MouseSensitivity;
         yoffset *= self.MouseSensitivity;
 
-        self.Yaw   += xoffset;
-        self.Pitch += yoffset;
+        self.Yaw   += xoffset*cos(glm.radians(self.Roll)) + yoffset*sin(glm.radians(self.Roll));
+        self.Pitch += yoffset*cos(glm.radians(self.Roll)) - xoffset*sin(glm.radians(self.Roll))
 
         # make sure that when pitch is out of bounds, screen doesn't get flipped
         if (constrainPitch):
@@ -110,17 +121,41 @@ class Camera:
     # calculates the front vector from the Camera's (updated) Euler Angles
     def updateCameraVectors(self):
     
+        roll = 45
         # calculate the new Front vector
         front = glm.vec3();
-        front.x = cos(glm.radians(self.Yaw)) * cos(glm.radians(self.Pitch));
-        front.y = sin(glm.radians(self.Pitch));
-        front.z = sin(glm.radians(self.Yaw)) * cos(glm.radians(self.Pitch));
+        front.x = cos(glm.radians(self.Yaw)) * cos(glm.radians(self.Pitch))
+        front.y = sin(glm.radians(self.Pitch))
+        front.z = sin(glm.radians(self.Yaw)) * cos(glm.radians(self.Pitch))
 
         self.Front = glm.normalize(front);
         # also re-calculate the Right and Up vector
-        self.Right = glm.normalize(glm.cross(self.Front, self.WorldUp));  # normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
-        self.Up    = glm.normalize(glm.cross(self.Right, self.Front));
-    
+        
 
+        if True:
+            self.Right = glm.normalize(glm.cross(self.Front, self.WorldUp));  # normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        
+            self.Up    = glm.normalize(glm.cross(self.Right, self.Front));
 
-    
+        if False:
+            #roll_mat = glm.rotate(glm.mat4(1.0), glm.radians(roll), self.Front);
+            #self.Up = glm.mat3(roll_mat) * self.Up;
+
+            right = glm.vec3();
+            right.x = cos(glm.radians(self.Yaw))   * sin(glm.radians(self.Pitch))*sin(glm.radians(roll)) - sin(glm.radians(self.Yaw))*cos(glm.radians(roll))
+            right.y = sin(glm.radians(self.Yaw))   * sin(glm.radians(self.Pitch))*sin(glm.radians(roll)) + cos(glm.radians(self.Yaw))*cos(glm.radians(roll))
+            right.z = cos(glm.radians(self.Pitch)) * cos(glm.radians(roll))
+   
+            self.Right = glm.normalize(right)
+   
+            up = glm.vec3();
+            up.x = cos(glm.radians(self.Yaw))   * sin(glm.radians(self.Pitch))*cos(glm.radians(roll)) + sin(glm.radians(self.Yaw))*sin(glm.radians(roll))
+            up.y = sin(glm.radians(self.Yaw))   * sin(glm.radians(self.Pitch))*cos(glm.radians(roll)) - cos(glm.radians(self.Yaw))*sin(glm.radians(roll))
+            up.z = cos(glm.radians(self.Yaw))   * cos(glm.radians(roll))
+   
+            self.Up = glm.normalize(up)
+
+        if True:
+            roll_mat = glm.rotate(glm.mat4(1.0), glm.radians(self.Roll), self.Front);
+            self.Right = glm.mat3(roll_mat) * self.Right;
+            self.Up = glm.mat3(roll_mat) * self.Up;
